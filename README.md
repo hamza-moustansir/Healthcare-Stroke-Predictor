@@ -18,8 +18,8 @@ Une application React pour prédire le risque de stroke et fournir des recommand
 1. Clonez ce dépôt :
    ```bash
    git clone https://github.com/votre-nom-utilisateur/Healthcare-Stroke-Predictor.git
-2. cd backend 
-    python app.py 
-3. cd frontend 
-    npm install 
-    npm start 
+2. cd backend <br>
+    python app.py <br>
+3. cd frontend <br>
+    npm install <br>
+    npm start <br>
