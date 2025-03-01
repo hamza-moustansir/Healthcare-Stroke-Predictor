@@ -12,8 +12,18 @@ const App = () => {
     heart_disease: 0,
     avg_glucose_level: 83.94,
     bmi: 28.89,
+    ever_married: 0, // 0 = Non, 1 = Oui
+    work_type: 0, // Valeur numérique encodée (0 = Private, 1 = Self-employed, etc.)
   });
   const [error, setError] = useState(null);
+
+  // Mapping des options de work_type
+  const workTypeOptions = [
+    { label: "Private", value: 2 },
+    { label: "Self-employed", value: 3 },
+    { label: "Govt_job", value: 0 },
+    { label: "children", value: 1 },
+  ];
 
   const handlePredict = async () => {
     try {
@@ -23,6 +33,8 @@ const App = () => {
         heart_disease: state.heart_disease,
         avg_glucose_level: state.avg_glucose_level,
         bmi: state.bmi,
+        ever_married: state.ever_married,
+        work_type: state.work_type, // Utiliser la valeur numérique directement
       };
 
       const response = await axios.post(
@@ -137,6 +149,35 @@ const App = () => {
             onChange={(e) => setState({ ...state, bmi: e.target.value })}
             className="w-full text-black px-2 py-1 rounded border"
           />
+        </div>
+
+        <div>
+          <label className="block mb-2 text-sm font-medium text-white">
+            Marié(e) (0 = Non, 1 = Oui) :
+          </label>
+          <input
+            type="number"
+            value={state.ever_married}
+            onChange={(e) => setState({ ...state, ever_married: e.target.value })}
+            className="w-full text-black px-2 py-1 rounded border"
+          />
+        </div>
+
+        <div>
+          <label className="block mb-2 text-sm font-medium text-white">
+            Type de travail :
+          </label>
+          <select
+            value={state.work_type}
+            onChange={(e) => setState({ ...state, work_type: parseInt(e.target.value) })}
+            className="w-full text-black px-2 py-1 rounded border"
+          >
+            {workTypeOptions.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
         </div>
       </div>
 
