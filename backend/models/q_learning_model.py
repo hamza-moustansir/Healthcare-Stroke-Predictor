@@ -1,16 +1,32 @@
 import pandas as pd
 import random
+from sklearn.preprocessing import LabelEncoder, StandardScaler
 
 class QLearningModel:
     def __init__(self, data_path, alpha=0.1, gamma=0.9, epsilon=0.5):
         # Charger le dataset
         self.df = pd.read_csv(data_path)
 
-        # Sélection des colonnes pertinentes
-        self.df = self.df[["age", "hypertension", "heart_disease", "avg_glucose_level", "bmi", "stroke"]]
+        # Supprimer la colonne 'id' si elle existe
+        if "id" in self.df.columns:
+            self.df.drop(columns=["id"], inplace=True)
 
         # Remplacer les valeurs NaN dans 'bmi' par la moyenne
         self.df["bmi"] = self.df["bmi"].fillna(self.df["bmi"].mean())
+
+        # Encodage des features catégoriques
+        categorical_features = ["gender", "ever_married", "work_type", "Residence_type", "smoking_status"]
+        self.encoder = LabelEncoder()
+        for col in categorical_features:
+            if col in self.df.columns:
+                self.df[col] = self.encoder.fit_transform(self.df[col])
+
+        # Sélection des features pertinentes
+        self.selected_features = [
+            'age', 'hypertension', 'heart_disease', 'avg_glucose_level',
+            'bmi', 'ever_married', 'work_type'
+        ]
+        self.df = self.df[self.selected_features + ['stroke']]
 
         # Paramètres d'apprentissage
         self.alpha = alpha
@@ -19,25 +35,22 @@ class QLearningModel:
 
         # Définition des états et actions
         self.states = self.df["stroke"].tolist()
-        self.actions = self.df.apply(
-            lambda row: (int(row.age), int(row.hypertension), int(row.heart_disease),
-                         row.avg_glucose_level, row.bmi), axis=1).tolist()
-        
+        self.actions = self.df[self.selected_features].apply(tuple, axis=1).tolist()
+
         # Initialisation de la table Q
         self.table_Q = {state: {action: 0 for action in self.actions} for state in self.states}
 
     def get_reward(self, state, action):
-        stroke = state
-        age, hypertension, heart_disease, glucose, bmi = action
+        age, hypertension, heart_disease, glucose, bmi, ever_married, work_type = action
 
-        if stroke == 1:
+        if state == 1:  # Patient a eu un AVC
             if hypertension == 1 or heart_disease == 1 or age > 65:
                 return 20  # Cas critique
             elif glucose > 180 or bmi > 30:
                 return 15  # À surveiller
             else:
                 return 10  # Modéré
-        else:
+        else:  # Patient n'a pas eu d'AVC
             if age < 40 and hypertension == 0 and heart_disease == 0:
                 return 10  # Faible risque
             elif hypertension == 1 or heart_disease == 1:
@@ -45,7 +58,7 @@ class QLearningModel:
             elif glucose > 200 or bmi > 30:
                 return -10  # Alerte santé
             else:
-                return 5
+                return 5  # Risque modéré mais gérable
 
     def train(self, episodes=100):
         for _ in range(episodes):
@@ -62,37 +75,33 @@ class QLearningModel:
                 self.table_Q[state][action] += self.alpha * (reward + self.gamma * max_future_q - self.table_Q[state][action])
 
     def predict_and_recommend(self, patient_data):
-     age, hypertension, heart_disease, glucose, bmi = patient_data
+        age, hypertension, heart_disease, glucose, bmi, ever_married, work_type = patient_data
 
-     # Prédire si le patient est à risque
-     risk_score = 0
-     if age > 65: risk_score += 2
-     if hypertension == 1: risk_score += 2
-     if heart_disease == 1: risk_score += 2
-     if glucose > 180: risk_score += 1
-     if bmi > 30: risk_score += 1
+        # Calcul du score de risque
+        risk_score = sum([
+            (age > 65) * 2, (hypertension == 1) * 2, (heart_disease == 1) * 2,
+            (glucose > 180) * 1, (bmi > 30) * 1
+        ])
+        has_stroke = 1 if risk_score >= 5 else 0
 
-     has_stroke = 1 if risk_score >= 5 else 0
- 
-     # Vérifier si la table Q contient des recommandations pour cet état
-     if has_stroke in self.table_Q:
-         best_action = max(self.table_Q[has_stroke], key=self.table_Q[has_stroke].get)
-     else:
-         best_action = "Pas de données suffisantes pour recommander"
+        # Vérifier si la table Q contient des recommandations pour cet état
+        if has_stroke in self.table_Q:
+            best_action = max(self.table_Q[has_stroke], key=self.table_Q[has_stroke].get)
+        else:
+            best_action = "Pas de données suffisantes pour recommander"
 
-    # ✅ Recommandations en fonction du risque d'AVC
-     if has_stroke:
-         recommendations = [
-            "Suivi médical régulier",
-            "Adopter un régime alimentaire sain",
-            "Activité physique adaptée",
-            "Surveillance du taux de glucose et du BMI"
-        ]
-     else:
-         recommendations = [
-            "Maintenir un mode de vie sain",
-            "Contrôler régulièrement les paramètres vitaux"
-        ]
+        # Recommandations en fonction du risque d'AVC
+        if has_stroke:
+            recommendations = [
+                "Suivi médical régulier",
+                "Adopter un régime alimentaire sain",
+                "Activité physique adaptée",
+                "Surveillance du taux de glucose et du BMI"
+            ]
+        else:
+            recommendations = [
+                "Maintenir un mode de vie sain",
+                "Contrôler régulièrement les paramètres vitaux"
+            ]
 
-     return {"stroke": has_stroke,  "recommendations": recommendations}
-
+        return {"stroke": has_stroke, "recommendations": recommendations}

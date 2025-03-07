@@ -1,12 +1,15 @@
 from flask import Flask, request, jsonify
-from flask_cors import CORS  # Importer Flask-CORS
+from flask_cors import CORS
 from models.q_learning_model import QLearningModel
+from datetime import datetime
 
 app = Flask(__name__)
 CORS(app)
-# Initialisation du modèle
+
+# Stockage des patients (en mémoire)
+patients = []
 model = QLearningModel("data/healthcare-dataset.csv")
-model.train(episodes=10)  # Entraînement du modèle
+model.train(episodes=10)
 
 @app.route("/predict", methods=["POST"])
 def predict():
@@ -17,12 +20,26 @@ def predict():
             int(data["hypertension"]),
             int(data["heart_disease"]),
             float(data["avg_glucose_level"]),
-            float(data["bmi"])
+            float(data["bmi"]),
+            int(data["ever_married"]),
+            int(data["work_type"])
         )
-        result = model.predict_and_recommend(patient_data)  # ✅ Correction appliquée
+        result = model.predict_and_recommend(patient_data)
+        
+        # Ajouter le patient à l'historique avec nom et prenom
+        patients.append({
+            **data,
+            "prediction": result,
+            "timestamp": datetime.now().isoformat()
+        })
+        
         return jsonify(result)
     except Exception as e:
         return jsonify({"error": str(e)}), 400
+
+@app.route("/patients", methods=["GET"])
+def get_patients():
+    return jsonify(patients)
 
 if __name__ == "__main__":
     app.run(debug=True)
